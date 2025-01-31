@@ -1,0 +1,49 @@
+PORT=3000
+SECRETE_KEY=powmvr4u39838rnv3u844n8vt93cm0348u83
+
+    socket token check for authantic users
+    when socket connect {
+        online
+        when i online that time my all chat group msg status will be delivered ( double tick )
+    }
+
+    chatList {
+        in chat set all room partner as receiver
+        done    also in chat status deliver of partner who are online
+        unread msg count of all chat group
+    }
+
+    chatHistory {
+        unread msg count of all chat group
+        done    read status of all message of my current chatGroup (chatHistory)
+    }
+
+    open chat room {
+        when i opened any chatRoom all msg status will be read
+    }
+
+    sendMsg {
+        done    when i send msg it should receive all user of that chat group
+        done    also delivered status who are online
+        done    also read status who are currently associat in that chatRoom
+    }
+    last seen {
+        last online time
+    }
+    online {
+        in chat list online user show
+    }
+    offline {
+        
+    }
+    replay to {
+        
+    }
+
+
+    new user find and send message
+
+
+
+
+

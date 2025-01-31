@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Socket.IO chat</title>
+    <style>
+      body {
+        margin: 0;
+        padding-bottom: 3rem;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      }
+
+      #form {
+        background: rgba(0, 0, 0, 0.15);
+        padding: 0.25rem;
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        display: flex;
+        height: 3rem;
+        box-sizing: border-box;
+        backdrop-filter: blur(10px);
+      }
+
+      #input {
+        border: none;
+        padding: 0 1rem;
+        flex-grow: 1;
+        border-radius: 2rem;
+        margin: 0.25rem;
+      }
+
+      #input:focus {
+        outline: none;
+      }
+
+      #form > button {
+        background: #333;
+        border: none;
+        padding: 0 1rem;
+        margin: 0.25rem;
+        border-radius: 3px;
+        outline: none;
+        color: #fff;
+      }
+
+      #messages {
+        list-style-type: none;
+        margin: 0;
+        padding: 0;
+      }
+
+      #messages > li {
+        padding: 0.5rem 1rem;
+      }
+
+      #messages > li:nth-child(odd) {
+        background: #efefef;
+      }
+    </style>
+  </head>
+
+  <body>
+    <h4>Chat app</h4>
+    <input id="recever" />
+    <button onclick="register()">set register & put receiver id</button>
+    <br />
+
+    <input id="historyInput" />
+    <button onclick="reloadHistory()">Reload History</button>
+
+    <br />
+    <input id="chatListInput" />
+    <button onclick="reloadChatList()">Reload Chat list</button>
+
+    <br />
+
+    <ul id="messages">
+      <li>start chat</li>
+    </ul>
+
+    <br />
+    <br />
+    <br />
+
+    <ul id="chatListUl">
+      <li>your chat list</li>
+    </ul>
+
+    <input id="inputx" />
+    <button onclick="message()">Send Msg</button>
+  </body>
+  <script src="/socket.io/socket.io.js"></script>
+  <script>
+    const socket = io();
+
+    let userid = localStorage.getItem("id");
+
+    // for user id set from db
+    if (userid === null) {
+      let token = localStorage.getItem("token");
+      if (token !== null) {
+        socket.emit("gen_new_id", token);
+        socket.on("user_new_id", function (userId) {
+          console.log(userId);
+          userid = userId;
+          localStorage.setItem("id", userId);
+        });
+      }
+    }
+
+    // set receiver and register in soket
+    function register() {
+      socket.emit("register", userid);
+      alert(`${userid} is register successfully!`);
+    }
+    var receverId = "";
+    var msg = "";
+
+    function message() {
+      receverId = document.getElementById("recever").value;
+      msg = document.getElementById("inputx").value;
+      console.log({ userid, receverId, msg }, "----------- { userid, receverId, msg }");
+
+      socket.emit("incomingMsg", { userid, receverId, msg });
+      appendMsg(`Me : ${msg}`);
+    }
+
+    // receiver screen msg
+    socket.on("incomingMsg", ({ receverId, msg }) => {
+      appendReceiverMsg(`${receverId} : ${msg}`);
+    });
+
+    // my screen msg
+    function appendMsg(msg) {
+      var ul = document.getElementById("messages");
+      var item = document.createElement("li");
+      item.textContent = msg;
+      item.style.marginLeft = "500px";
+      ul.appendChild(item);
+    }
+
+    // receiver screen msg apend
+    function appendReceiverMsg(msg) {
+      var ul = document.getElementById("messages");
+      var item = document.createElement("li");
+      item.textContent = msg;
+      ul.appendChild(item);
+    }
+
+    // relode history of chat
+    function reloadHistory(params) {
+      const historyInput = document.getElementById("historyInput").value;
+      socket.emit("chat_history", { userid, chatId: historyInput });
+      socket.on("chat_history", (history) => {
+        appendHistoryMsg(history);
+      });
+
+      // apend history
+      function appendHistoryMsg(history) {
+        console.log(history, "-------history");
+
+        history.chat_data.map((item) => {
+          var ul = document.getElementById("messages");
+          var li = document.createElement("li");
+
+          li.textContent = `${item.sender_details.name} : ${item.message}`;
+          if (item.sender_id == userid) {
+            li.style.marginLeft = "500px";
+          }
+          ul.appendChild(li);
+        });
+      }
+    }
+
+    // relode chat list
+    function reloadChatList(params) {
+      const chatListInput = document.getElementById("chatListInput").value;
+      socket.emit("chat_list", { userId: userid });
+
+      socket.on("chat_list", (chatList) => {
+        chatList.map((item) => {
+          const listUl = document.getElementById("chatListUl");
+          const li = document.createElement("li");
+          item.data_details.map((idata) => {
+            li.textContent = `${idata.name}, ${idata.phone_no ? idata.phone_no : ""}, ${item._id}`;
+            listUl.appendChild(li);
+            console.log(li, "-------------------------------- li");
+          });
+        });
+      });
+    }
+  </script>
+</html>

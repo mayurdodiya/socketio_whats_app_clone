@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Socket.IO chat</title>
+    <style>
+      body {
+        margin: 0;
+        padding-bottom: 3rem;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      }
+
+      #form {
+        background: rgba(0, 0, 0, 0.15);
+        padding: 0.25rem;
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        display: flex;
+        height: 3rem;
+        box-sizing: border-box;
+        backdrop-filter: blur(10px);
+      }
+
+      #input {
+        border: none;
+        padding: 0 1rem;
+        flex-grow: 1;
+        border-radius: 2rem;
+        margin: 0.25rem;
+      }
+
+      #input:focus {
+        outline: none;
+      }
+
+      #form > button {
+        background: #333;
+        border: none;
+        padding: 0 1rem;
+        margin: 0.25rem;
+        border-radius: 3px;
+        outline: none;
+        color: #fff;
+      }
+
+      #messages {
+        list-style-type: none;
+        margin: 0;
+        padding: 0;
+      }
+
+      #messages > li {
+        padding: 0.5rem 1rem;
+      }
+
+      #messages > li:nth-child(odd) {
+        background: #efefef;
+      }
+
+      div {
+        border: double;
+        inline-size: 300px;
+        padding: 5px 20px;
+        background-color: rgb(242, 242, 242);
+      }
+    </style>
+  </head>
+
+  <body>
+    <h1>Chat app</h1>
+    <input id="chat_to_new_user" />
+    <button onclick="register()">chat to new user</button>
+    <br />
+
+    <br />
+
+    <ul id="messages">
+      <li>start chat</li>
+    </ul>
+
+    <br />
+    <br />
+    <br />
+
+    <h3>your chat list</h3>
+    <ul id="chatListUl"></ul>
+
+    <input id="inputx" />
+    <button onclick="message()">Send Msg</button>
+  </body>
+  <script src="/socket.io/socket.io.js"></script>
+  <script>
+    const socket = io();
+
+    let userid = localStorage.getItem("id");
+
+    // for user id set from db
+    if (userid === null) {
+      let token = localStorage.getItem("token");
+      if (token === null) {
+        alert("Please login first, required token in local storage!");
+      }
+      if (token !== null) {
+        socket.emit("gen_new_id", token);
+        socket.on("user_new_id", function (userId) {
+          console.log(userId);
+          userid = userId;
+          localStorage.setItem("id", userId);
+        });
+      }
+    }
+
+    // set receiver and register in soket
+    function register() {
+      socket.emit("register", userid);
+      alert(`${userid} is register successfully!`);
+    }
+    var receverId = "";
+    var msg = "";
+
+    function message() {
+      // const newReceiver = document.getElementById("recever").value;
+      // if (newReceiver != "") {
+      //   receverId = newReceiver;
+      //   console.log(receverId, '------------------------------ new user');
+        
+      // }
+      msg = document.getElementById("inputx").value;
+      console.log({ userid, receverId, msg }, "----------- { userid, receverId, msg }");
+
+      socket.emit("incomingMsg", { userid, receverId, msg });
+      appendMsg(`Me : ${msg}`);
+    }
+
+    // receiver screen msg
+    socket.on("incomingMsg", ({ receverId, msg }) => {
+      appendReceiverMsg(`${receverId} : ${msg}`);
+    });
+
+    // my screen msg
+    function appendMsg(msg) {
+      var ul = document.getElementById("messages");
+      var item = document.createElement("li");
+      item.textContent = msg;
+      item.style.marginLeft = "500px";
+      ul.appendChild(item);
+    }
+
+    // receiver screen msg apend
+    function appendReceiverMsg(msg) {
+      var ul = document.getElementById("messages");
+      var item = document.createElement("li");
+      item.textContent = msg;
+      ul.appendChild(item);
+    }
+
+    // relode history of chat
+    function reloadHistory({ chatId }) {
+      // const historyInput = document.getElementById("historyInput").value;
+      const historyInput = chatId;
+      socket.emit("chat_history", { userid, chatId: historyInput });
+      socket.on("chat_history", (history) => {
+        appendHistoryMsg(history);
+      });
+
+      // apend history
+      function appendHistoryMsg(history) {
+        console.log(history, "-------history");
+
+        history.participents.map((setReciverId) => {
+          if (setReciverId != userid) {
+            receverId = setReciverId;
+            //  message({receverId:})
+          }
+        });
+
+        history.chat_data.map((item) => {
+          var ul = document.getElementById("messages");
+          var li = document.createElement("li");
+
+          li.textContent = `${item.sender_details.name} : ${item.message}`;
+          if (item.sender_id == userid) {
+            li.style.marginLeft = "500px";
+          }
+          ul.appendChild(li);
+        });
+      }
+    }
+
+    // relode chat list
+    function reloadChatList(params) {
+      register();
+      console.log(userid, "------------------ userid");
+      socket.emit("chat_list", { userId: userid });
+
+      socket.on("chat_list", (chatList) => {
+        chatList.map((item) => {
+          const listUl = document.getElementById("chatListUl");
+          const div = document.createElement("div");
+          const li1 = document.createElement("li");
+          const li2 = document.createElement("li");
+          const button = document.createElement("button");
+
+          item.messageDetails.map((msg) => {
+            li1.textContent = `last msg time : ${item.created_at}`;
+            li2.textContent = `message : ${msg.message}`;
+          });
+
+          button.textContent = `${item.data_details.name ? item.data_details.name : item.data_details.phone_no ? item.data_details.phone_no : ""}`;
+          button.type = "button";
+          button.onclick = function () {
+            alert(`Could you open ${item.data_details.name} chat?`);
+            reloadHistory({ chatId: item._id });
+          };
+
+          div.appendChild(button);
+          div.appendChild(li1);
+          div.appendChild(li2);
+          listUl.appendChild(div);
+          const lineBreak = document.createElement("br");
+          listUl.appendChild(lineBreak);
+        });
+      });
+    }
+
+    // reload chat list automatic
+    window.onload = () => {
+      reloadChatList();
+    };
+  </script>
+</html>

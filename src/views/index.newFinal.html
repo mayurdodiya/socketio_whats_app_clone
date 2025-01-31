@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Document</title>
+  </head>
+
+  <body>
+    <h1>Group Chat</h1>
+    <br />
+    <br />
+    <br />
+
+    <ul>
+      <input type="text" id="add_user_number" placeholder="Enter User phone number" />
+      <button onclick="addUserNumber()">Select New single User Number</button>
+    </ul>
+    <ul>
+      <p>-------------------------- minium three number in group required ------------------------------</p>
+      <input type="text" id="new_group" placeholder="Enter Group name" />
+      <!-- <button onclick="groupName()">Create New Group</button>  -->
+      <input type="text" id="new_member" placeholder="Enter user number in group" />
+      <button onclick="createGroup()">Enter user number in group</button>
+    </ul>
+
+    <br />
+    <br />
+
+    <ul id="chat_history_ul">
+      <h3>--- ChatHistory ---</h3>
+    </ul>
+
+    <br />
+    <br />
+    <br />
+
+    <ul id="chat_list_ul">
+      <h3>--- ChatList ---</h3>
+    </ul>
+    <ul id="">
+      <button onclick="leaveGroup()">Back From Room</button>
+    </ul>
+
+    <br />
+    <br />
+    <br />
+
+    <input id="message_input" placeholder=" Type your message" />
+    <button onclick="sendMessage()">Send Message</button>
+  </body>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script>
+    const socket = io();
+
+    // reload chatlist, perticular history & set user id through token -----------------------------------------------
+    const token = localStorage.getItem("token");
+    let oldGroupId = localStorage.getItem("oldGroupId");
+    let htmlUserId = localStorage.getItem("id");
+    let receiverId = localStorage.getItem("receiverId") ? localStorage.getItem("receiverId") : "";
+
+    // create new group with minimum 3 user
+    function createGroup(params) {
+      const groupName = document.getElementById("new_group").value;
+      const newMember = document.getElementById("new_member").value;
+      alert(`DO YOU WANT TO CREATE GROUP : ${groupName} WITH USER : ${newMember}`);
+      socket.emit("create_chat_group", { groupName, newMember, htmlUserId });
+
+      socket.on("create_chat_group", (data) => {
+        alert(`GROUP CREATED : ${data._id}`);
+      });
+    }
+
+    // add new user in single chatgroup
+    function addUserNumber(params) {
+      const userNumber = document.getElementById("add_user_number").value;
+      alert(`DO YOU WANT TO ADD USER : ${userNumber}`);
+      socket.emit("add_chat_group", { userNumber, htmlUserId });
+    }
+
+    // set userId in local storage from given token
+    if (token != null) {
+      socket.emit("get_user_id", { token });
+      socket.on("get_user_id", (data) => {
+        localStorage.setItem("id", data.userId);
+        htmlUserId = data.userId;
+      });
+    }
+
+    // reload user all chat list
+    function reloadChatList() {
+      console.log("----------------------------- chat history load");
+      socket.emit("chatList", { userId: htmlUserId });
+    }
+
+    socket.on("chatList", ({ chatList }) => {
+      console.log(chatList, "------------------- finalchatList");
+      
+      // show chat list in html
+      chatList.map((chatListData) => {
+        console.log(chatListData.data_details.name, "--------------- chat list name");
+
+        const li1 = document.createElement("li");
+        const li2 = document.createElement("li");
+        const li3 = document.createElement("li");
+        const button = document.createElement("button");
+        button.onclick = function () {
+          socket.emit("chatHistory", { groupId: chatListData._id, userId: htmlUserId, chatId: chatListData._id });
+        };
+
+        button.innerText = chatListData.data_details.name;
+        chatListData.messageDetails.map((messageDetails) => {
+          li1.innerText = `Last msg : ${messageDetails.message}`;
+          li2.innerText = `Last msg time : ${messageDetails.created_at}`;
+        });
+        li3.innerText = `your unread msg : ${chatListData.totalUnreadMsgCount}`;
+
+        const chat_list_ul = document.getElementById("chat_list_ul");
+
+        chat_list_ul.appendChild(button);
+        chat_list_ul.appendChild(li1);
+        chat_list_ul.appendChild(li2);
+        chat_list_ul.appendChild(li3);
+        chat_list_ul.appendChild(document.createElement("br"));
+      });
+    });
+
+    function leaveGroup(params) {
+      const oldGroupId = localStorage.getItem("groupId");
+      console.log(oldGroupId, "--------------------------------------------- oldGroupId");
+
+      document.getElementById("chat_list_ul").innerHTML = "<h1>--- ChatList ---</h1>";
+
+      if (oldGroupId != null) {
+        document.getElementById("chat_history_ul").innerHTML = "<h3>--- ChatHistory ---</h3>";
+
+        reloadChatList();
+        socket.emit("leave_group", oldGroupId); // new -----
+      }
+    }
+
+    // chat history load when click on ( ChatList it group Button )
+    socket.on("chatHistory", ({ chatHistory }) => {
+      // console.log(chatHistory.chat_data, "-------------------- chatHistory chatData");
+      // console.log(chatHistory._id, "-------------------- groupId");
+
+      if (chatHistory?.chat_data?.length != null) {
+        chatHistory.chat_data.map((chatData) => {
+          const li = document.createElement("li");
+          li.innerText = `${chatData.sender_details.name ? chatData.sender_details.name : chatData.sender_details.phone_no} : ${chatData.message},  ( time : ${chatData.created_at})`;
+          if (chatData.sender_id == htmlUserId) {
+            li.style.marginLeft = "500px";
+          }
+
+          const chat_history_ul = document.getElementById("chat_history_ul");
+          chat_history_ul.appendChild(li);
+        });
+      }
+
+      // fire here for leave old group
+      localStorage.setItem("oldGroupId", localStorage.getItem("groupId"));
+      localStorage.setItem("groupId", chatHistory._id);
+
+      // set receiver id and group id
+      if (chatHistory?.chat_data?.length != null) {
+        chatHistory.participents.map((participents) => {
+          if (participents != htmlUserId) {
+            localStorage.setItem("receiverId", participents);
+          }
+        });
+      }
+    });
+
+    socket.on("error", ({ message }) => {
+      console.log(message, "----------------- message");
+      alert(message);
+    });
+
+    window.onload = () => {
+      reloadChatList(); // reload chat list
+    };
+
+    // send new message in chat history ------------------------------------------------------------------------------
+    function sendMessage() {
+      const message_input = document.getElementById("message_input").value;
+      console.log(message_input, "----- message_input");
+      if (message_input != null) {
+        const groupId = localStorage.getItem("groupId");
+        const receiverId = localStorage.getItem("receiverId");
+        console.log(receiverId, "---------------- receiverId");
+
+        socket.emit("send_message", { groupId, htmlUserId, receiverId, message: message_input });
+      }
+    }
+
+    socket.on("send_message", (data) => {
+      const chat_history_ul = document.getElementById("chat_history_ul");
+      const li = document.createElement("li");
+      li.innerText = `${data.user_name} : ${data.message} ( time : ${data.time})`;
+      li.innerText = `${data.sender_id == localStorage.getItem("id") ? "You" : data.user_name} : ${data.message} ( time : ${data.time})`;
+      if (data.sender_id == localStorage.getItem("id")) {
+        li.style.marginLeft = "500px";
+      }
+      chat_history_ul.appendChild(li);
+    });
+  </script>
+</html>
+
+<!-- 
+1)token save in local storage and its id
+2)listing of all chat room ( chat group name, last msg, last msg time )
+3)chat history of perticular group ( 1. reload chat hsitory, 2. join room )
+4) live chats in room of history
+-->

@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Socket.IO Group Chat</title>
+    <script src="/socket.io/socket.io.js"></script>
+  </head>
+  <body>
+    <h1>Group Chat</h1>
+    <div>
+      <input id="groupName" type="text" placeholder="Enter group name" />
+      <button onclick="joinGroup()">Join Group</button>
+    </div>
+    <div>
+      <input id="messageInput" type="text" placeholder="Enter your message" />
+      <button onclick="sendMessage()">Send Message</button>
+    </div>
+    <div>
+      <input id="senderInput" type="text" placeholder="Enter your sender id" />
+    </div>
+    <h3>Start</h3>
+    <!-- <div id="messages"></div> -->
+    <ul id="messages"></ul>
+
+    <script>
+      const socket = io();
+
+      // Join a group
+      function joinGroup() {
+        var groupId = document.getElementById("groupName").value;
+        const senderInput = document.getElementById("senderInput").value;
+
+        if ((groupId)) {
+          socket.emit("joinGroup", { userId: senderInput, groupId: groupId });
+          // appendMessage(`You joined group: ${groupName}`);
+        }
+      }
+
+      // Send a message
+      function sendMessage() {
+        const messageInput = document.getElementById("messageInput").value;
+        const senderInput = document.getElementById("senderInput").value;
+        console.log(messageInput, "--------------------- messageInput");
+        console.log(senderInput, "--------------------- senderInput");
+
+        var groupName = document.getElementById("groupName").value;
+        if ((groupName = 1 && messageInput)) {
+          // socket.emit("sendMessage", { groupName, message });
+          socket.emit("sendMessageToGroup", { groupId: "6790737cdb92f00c36a30129", sender: senderInput, content: messageInput });
+
+          //   appendMessage(`You: ${message}`);
+        }
+      }
+
+      // Append messages to the chat
+      function appendMessage(data) {
+        // const messageInput = document.getElementById("messageInput").value;
+        // console.log(messageInput, "--------------------- messageInput");
+
+        const messageUl = document.getElementById("messages");
+        const messageElement = document.createElement("div");
+        messageElement.textContent = data.content;
+        messageUl.appendChild(messageElement);
+      }
+
+      // Listen for incoming messages
+      socket.on("groupMessage", (data) => {
+        console.log(data, "finaly i got message from server -------------");
+
+        console.log(`${data.sender}: ${data.content}`);
+        appendMessage(data);
+      });
+    </script>
+  </body>
+</html>
